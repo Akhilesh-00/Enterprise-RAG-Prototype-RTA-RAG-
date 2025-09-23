@@ -16,7 +16,7 @@ app = Flask(__name__)
 CORS(app)  # Allow frontend or other apps to call your API
 
 # --- GEMINI CONFIG ---
-YOUR_GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"
+YOUR_GEMINI_API_KEY = "AIzaSyA8vmZhVmKw2280JRQg9mYkJ9vMMRduOrU"
 
 if not YOUR_GEMINI_API_KEY or YOUR_GEMINI_API_KEY == "PASTE_YOUR_KEY_HERE":
     raise ValueError("Please paste your Gemini API Key into the 'YOUR_GEMINI_API_KEY' variable.")
