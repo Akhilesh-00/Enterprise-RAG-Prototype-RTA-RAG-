@@ -5,18 +5,18 @@ import base64
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
 
 matplotlib.use('Agg')
 
-# --- 1. FLASK SETUP ---
+# --- FLASK SETUP ---
 app = Flask(__name__)
-CORS(app)  # Allow all origins for frontend access
+CORS(app)  # Allow frontend or other apps to call your API
 
-# --- 2. GEMINI CONFIG & API KEY ---
-YOUR_GEMINI_API_KEY = "AIzaSyA8vmZhVmKw2280JRQg9mYkJ9vMMRduOrU"
+# --- GEMINI CONFIG ---
+YOUR_GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"
 
 if not YOUR_GEMINI_API_KEY or YOUR_GEMINI_API_KEY == "PASTE_YOUR_KEY_HERE":
     raise ValueError("Please paste your Gemini API Key into the 'YOUR_GEMINI_API_KEY' variable.")
@@ -25,7 +25,7 @@ genai.configure(api_key=YOUR_GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-1.5-pro-latest')
 print("✅ Gemini 1.5 Pro configured successfully.")
 
-# --- 3. LOAD DATA ---
+# --- LOAD DATA ---
 def load_data():
     paths = [
         "dataset/june_2025_data_full.xlsx",
@@ -35,9 +35,8 @@ def load_data():
     try:
         dfs = [pd.read_excel(p) for p in paths]
     except FileNotFoundError as e:
-        print(f"❌ ERROR: File not found. Make sure the 'dataset' folder exists and files are named correctly.")
+        print("❌ ERROR: Dataset files not found.")
         exit()
-
     df = pd.concat(dfs, ignore_index=True)
     df.dropna(subset=['trips'], inplace=True)
     df['trips'] = pd.to_numeric(df['trips'], errors='coerce').astype(int)
@@ -46,7 +45,7 @@ def load_data():
 
 df = load_data()
 
-# --- 4. HELPER: CREATE CHART ---
+# --- HELPER: CREATE CHART ---
 def create_chart(chart_data):
     if not chart_data or not chart_data.get('labels') or not chart_data.get('values'):
         return None
@@ -70,7 +69,7 @@ def create_chart(chart_data):
     plt.close(fig)
     return f"data:image/png;base64,{img_base64}"
 
-# --- 5. FULL LLM HANDLING ---
+# --- FULL LLM HANDLING ---
 def generate_answer_full_llm(question, df):
     prompt = f"""
     You are a data analysis expert. Given the dataset below, first decide the operation (SUM, AVERAGE, MAX, MIN, COMPARE),
@@ -105,11 +104,7 @@ def generate_answer_full_llm(question, df):
     chart_img = create_chart(result.get('chart_data'))
     return {"summary": result.get('summary'), "graph": chart_img}
 
-# --- 6. FLASK ENDPOINTS ---
-@app.route('/')
-def home():
-    return render_template('index.html')
-
+# --- API ENDPOINT ---
 @app.route('/ask', methods=['POST'])
 def ask():
     user_question = request.json.get('question')
@@ -118,7 +113,7 @@ def ask():
     result = generate_answer_full_llm(user_question, df)
     return jsonify(result)
 
-# --- 7. RUN APP ---
+# --- RUN APP ---
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))  # Use Render assigned port or default 5000
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
