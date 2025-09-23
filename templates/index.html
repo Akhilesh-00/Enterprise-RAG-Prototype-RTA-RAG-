@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dubai Transport Data Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #030712; /* Even darker gray for the body */
+        }
+        #chat-container::-webkit-scrollbar { width: 6px; }
+        #chat-container::-webkit-scrollbar-track { background: #1f2937; }
+        #chat-container::-webkit-scrollbar-thumb { background-color: #4b5563; border-radius: 20px; }
+        .prose strong { color: white; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-200 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl h-[90vh] flex flex-col bg-gray-900 shadow-2xl shadow-blue-500/10 rounded-2xl border border-gray-700">
+        <!-- Header -->
+        <div class="p-4 border-b border-gray-700 flex items-center space-x-4">
+            <div class="p-3 bg-blue-600 rounded-xl">
+                <i class="fa-solid fa-chart-simple fa-xl text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-white">Dubai Transport Data Assistant</h1>
+                <p class="text-sm text-gray-400">Your AI-powered RTA data analyst</p>
+            </div>
+        </div>
+
+        <!-- Chat Container -->
+        <div id="chat-container" class="flex-1 p-6 space-y-6 overflow-y-auto">
+             <!-- Welcome Message -->
+            <div class="flex items-start gap-4">
+                <div class="flex-shrink-0 w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-robot text-blue-400"></i>
+                </div>
+                <div class="bg-gray-800 p-4 rounded-xl max-w-2xl prose prose-invert">
+                    <p>Hello! I can analyze Dubai transport data from June, July, and August 2025.</p>
+                    <p>Try asking me a question like:</p>
+                    <ul class="text-gray-300">
+                        <li>"Busiest stations in August"</li>
+                        <li>"Compare metro and tram trips in July"</li>
+                        <li>"How many bus trips in June?"</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-4 border-t border-gray-700">
+            <div class="relative">
+                <input type="text" id="user-input" class="w-full bg-gray-800 border border-gray-600 rounded-xl py-3 pl-4 pr-12 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow" placeholder="Ask a question, e.g., 'busiest stations in august'">
+                <button id="send-btn" class="absolute inset-y-0 right-0 flex items-center justify-center w-12 h-full text-gray-400 hover:text-blue-400 transition-colors">
+                    <i class="fa-solid fa-paper-plane fa-lg"></i>
+                </button>
+            </div>
+             <p class="text-xs text-center text-gray-600 mt-2">Powered by Google Gemini & Matplotlib</p>
+        </div>
+    </div>
+
+    <script>
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const chatContainer = document.getElementById('chat-container');
+
+        const sendMessage = async () => {
+            const question = userInput.value.trim();
+            if (!question) return;
+
+            const userMessageHtml = `
+                <div class="flex items-start gap-4 justify-end">
+                    <div class="bg-blue-600 text-white p-4 rounded-xl max-w-lg">
+                        <p>${question}</p>
+                    </div>
+                    <div class="flex-shrink-0 w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+                        <i class="fa-solid fa-user text-gray-300"></i>
+                    </div>
+                </div>
+            `;
+            chatContainer.innerHTML += userMessageHtml;
+            userInput.value = '';
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            const loadingHtml = `
+                <div id="loading-indicator" class="flex items-start gap-4">
+                    <div class="flex-shrink-0 w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+                        <i class="fa-solid fa-robot text-blue-400 animate-pulse"></i>
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded-xl max-w-lg">
+                        <p class="italic text-gray-400">Analyzing the data, please wait...</p>
+                    </div>
+                </div>
+            `;
+            chatContainer.innerHTML += loadingHtml;
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: question })
+                });
+
+                document.getElementById('loading-indicator').remove();
+
+                if (!response.ok) throw new Error('Network response was not ok.');
+                
+                const data = await response.json();
+                
+                let answerHtml = `
+                    <div class="flex items-start gap-4">
+                        <div class="flex-shrink-0 w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-robot text-blue-400"></i>
+                        </div>
+                        <div class="bg-gray-800 p-4 rounded-xl max-w-full prose prose-invert">
+                            <p>${data.summary.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</p>
+                `;
+
+                if (data.graph) {
+                    answerHtml += `<img src="${data.graph}" alt="Data visualization graph" class="mt-4 rounded-lg border border-gray-700"/>`;
+                }
+                
+                answerHtml += `</div></div>`;
+                chatContainer.innerHTML += answerHtml;
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('loading-indicator').remove();
+                const errorHtml = `
+                    <div class="flex items-start gap-4">
+                        <div class="flex-shrink-0 w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+                             <i class="fa-solid fa-triangle-exclamation text-red-400"></i>
+                        </div>
+                        <div class="bg-red-900/50 border border-red-500/50 text-red-300 p-4 rounded-xl max-w-lg">
+                            <p><strong>Error:</strong> I couldn't process that request. Please try rephrasing or check the server console.</p>
+                        </div>
+                    </div>
+                `;
+                chatContainer.innerHTML += errorHtml;
+            }
+            
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        };
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
