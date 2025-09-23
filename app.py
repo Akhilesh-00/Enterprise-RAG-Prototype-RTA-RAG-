@@ -6,12 +6,14 @@ import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 import google.generativeai as genai
 
 matplotlib.use('Agg')
 
 # --- 1. FLASK SETUP ---
 app = Flask(__name__)
+CORS(app)  # Allow all origins for frontend access
 
 # --- 2. GEMINI CONFIG & API KEY ---
 YOUR_GEMINI_API_KEY = "AIzaSyA8vmZhVmKw2280JRQg9mYkJ9vMMRduOrU"
@@ -70,7 +72,6 @@ def create_chart(chart_data):
 
 # --- 5. FULL LLM HANDLING ---
 def generate_answer_full_llm(question, df):
-    """LLM decides operation, filters, performs calculation, and generates chart"""
     prompt = f"""
     You are a data analysis expert. Given the dataset below, first decide the operation (SUM, AVERAGE, MAX, MIN, COMPARE),
     the filters to apply (month, transport_mode), then perform the calculation.
@@ -90,11 +91,7 @@ def generate_answer_full_llm(question, df):
       "operation": "MAX",
       "filters": {{"month": "Aug", "transport_mode": ["Metro"]}},
       "summary": "Station X had the highest trips in August for Metro.",
-      "chart_data": {{
-        "title": "Trips by Station",
-        "labels": ["Station1", "Station2"],
-        "values": [1000, 2000]
-      }}
+      "chart_data": {{"title": "Trips by Station", "labels": ["Station1", "Station2"], "values": [1000, 2000]}}
     }}
     """
     try:
@@ -118,11 +115,10 @@ def ask():
     user_question = request.json.get('question')
     if not user_question:
         return jsonify({'error': 'No question provided'}), 400
-
-    # Entire LLM handles everything
     result = generate_answer_full_llm(user_question, df)
     return jsonify(result)
 
 # --- 7. RUN APP ---
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))  # Use Render assigned port or default 5000
+    app.run(host="0.0.0.0", port=port, debug=True)
