@@ -8,11 +8,11 @@ import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 import google.generativeai as genai
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
 
 # Use a non-GUI backend for Matplotlib
 matplotlib.use('Agg')
-    
+
 # --- 1. CONFIGURATION ---
 # IMPORTANT: Replace with your actual API key
 genai.configure(api_key="AIzaSyDK0_A0qcZRtWeTY3CMK8Ntn10295dWTas")
@@ -69,7 +69,7 @@ def load_and_prepare_data():
     master_df['mode'] = master_df['mode'].astype(str).str.strip()
     master_df['station'] = master_df['station'].astype(str).str.strip()
     master_df['trips'] = pd.to_numeric(master_df['trips'], errors='coerce').fillna(0).astype(int)
-    
+
     print(f"✅ Master DataFrame created with {len(master_df)} records from all sources.")
     return master_df
 
@@ -103,7 +103,7 @@ Response:
 # --- Updated execute_pandas_query ---
 def execute_pandas_query(plan, dataframe, question_text):
     question_lower = question_text.lower()
-    
+
     # --- 1. Red/Green Line Metro restriction for June, July, August ---
     months_jja = ['june', 'july', 'august']
     if any(month in question_lower for month in months_jja) and \
@@ -137,12 +137,12 @@ def execute_pandas_query(plan, dataframe, question_text):
         return {"error": "No data found for the specified filters. Please broaden your query."}
 
     metric = 'trips'
-    
+
     if operation in ['rank_stations', 'compare_stations']:
         station_data = filtered_df[filtered_df['station'] != 'Citywide']
         if station_data.empty:
             return {"error": "I don't have station data for these months. I can only provide city-wide totals for that period."}
-        
+
         grouped = station_data.groupby('station')[metric].sum()
         if operation == 'rank_stations':
             rank_type = plan.get('rank', 'highest')
@@ -170,9 +170,6 @@ def execute_pandas_query(plan, dataframe, question_text):
         return {"result": grouped.apply(int).to_dict()}
 
     return {"error": f"Unsupported operation: '{operation}'."}
-
-
-
 
 def synthesize_answer(question, plan, calculation_result):
     prompt = f"""
@@ -234,17 +231,9 @@ def create_chart(chart_data):
     return f"data:image/png;base64,{img_base64}"
 
 # --- 5. FLASK APP ---
-TEMPLATE_DIR = r"D:\rta_rag\templates"
-app = Flask(__name__, template_folder=TEMPLATE_DIR)
+app = Flask(__name__)
 
-@app.route('/')
-def home(): return render_template('index.html')
-
-@app.route('/ask', methods=['POST'])
-@app.route('/ask', methods=['POST'])
-@app.route('/ask', methods=['POST'])
 # --- Updated /ask route ---
-@app.route('/ask', methods=['POST'])
 @app.route('/ask', methods=['POST'])
 def ask():
     user_question = request.json.get('question')
@@ -254,7 +243,7 @@ def ask():
 
     # --- IMMEDIATE BLOCKS BASED ON MONTHS ---
     question_lower = user_question.lower()
-    
+
     # 1️⃣ Red/Green Line Metro for June, July, August
     if ('red line' in question_lower or 'green line' in question_lower) and \
        any(m in question_lower for m in ['june','july','august']):
@@ -262,7 +251,7 @@ def ask():
             "summary": "Red Line Metro and Green Line Metro data unavailable for the months June, July, and August.",
             "graph": None
         })
-    
+
     # 2️⃣ Station-level data for Feb, Mar, Apr, May
     if ('station' in question_lower or 'stations' in question_lower) and \
        any(m in question_lower for m in ['feb','march','mar','april','apr','may']):
@@ -276,27 +265,25 @@ def ask():
     try:
         plan = create_query_plan(user_question)
         print(f"   📊 Plan: {plan}")
-        
+
         calculation_result = execute_pandas_query(plan, df, user_question)
         print(f"   🔢 Result: {calculation_result}")
 
         if "error" in calculation_result:
             return jsonify({"summary": calculation_result["error"], "graph": None})
-        
+
         final_result = synthesize_answer(user_question, plan, calculation_result)
         chart_image = create_chart(final_result.get('chart_data'))
         print("✅ Responded successfully.")
         return jsonify({"summary": final_result.get('summary'), "graph": chart_image})
-    
+
     except json.JSONDecodeError:
         return jsonify({"summary": "I had trouble understanding that. Could you rephrase?", "graph": None})
     except Exception as e:
         print(f"❌ AN UNEXPECTED ERROR OCCURRED: {e}")
         return jsonify({"error": "An internal error occurred. See server logs."}), 500
 
-
-
 # --- 6. STARTUP LOGIC ---
 if __name__ == "__main__":
-    print("🚀 Starting Flask server...")
+    print("🚀 Starting Flask API server...")
     app.run(debug=True, host='0.0.0.0', port=5000)
