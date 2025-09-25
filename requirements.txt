@@ -1,6 +1,7 @@
-Flask
 pandas
+numpy
+chromadb
+sentence-transformers
 matplotlib
+flask
 google-generativeai
-openpyxl
-flask-cors
