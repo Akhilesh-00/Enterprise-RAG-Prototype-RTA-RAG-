@@ -21,7 +21,7 @@ matplotlib.use('Agg')
 genai.configure(api_key="AIzaSyDK0_A0qcZRtWeTY3CMK8Ntn10295dWTas")
 LLM_MODEL = "gemini-1.5-pro-latest"
 DATA_FOLDER = "./dataset"
-RIDERSHIP_FILE_PATH = r"D:\rta_rag\dataset\ridership.xlsx"
+RIDERSHIP_FILE_PATH = os.path.join(DATA_FOLDER, "ridership.xlsx")
 MONTH_FILES = {}
 
 
