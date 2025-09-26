@@ -17,7 +17,7 @@ app = Flask(__name__)
 DATA_FOLDER = "./dataset"
 
 file_path = os.path.join(DATA_FOLDER, "ridership.csv")
-df = pd.read_csv(file_path, encoding='utf-8', errors='ignore')
+df = pd.read_csv(file_path, encoding='utf-8')
 df.columns = df.columns.str.strip()
 df['date'] = pd.to_datetime(df['date'], format='%m/%d/%Y')
 
