@@ -7,6 +7,8 @@ from sentence_transformers import SentenceTransformer, CrossEncoder
 import google.generativeai as genai
 import json
 from flask import Flask
+from flask import Flask, request, jsonify, render_template
+
 app = Flask(__name__)
 
 # ===============================
@@ -15,7 +17,7 @@ app = Flask(__name__)
 DATA_FOLDER = "./dataset"
 
 file_path = os.path.join(DATA_FOLDER, "ridership.csv")
-df = pd.read_csv(file_path)
+df = pd.read_csv(file_path, encoding='utf-8', errors='ignore')
 df.columns = df.columns.str.strip()
 df['date'] = pd.to_datetime(df['date'], format='%m/%d/%Y')
 
@@ -421,6 +423,17 @@ def answer_query(query):
         prompt = f"You are a ridership analysis assistant. Use ONLY the context below to answer the question in a detailed, natural-language way.\nCONTEXT:\n{context}\n\nQUESTION:\n{query}\n\nANSWER:"
         response = synthesis_model.generate_content(prompt); 
         return response.text
+@app.route("/query", methods=["POST"])
+def query():
+    data = request.json
+    user_query = data.get("query", "")
+    if not user_query:
+        return jsonify({"error": "No query provided"}), 400
+    response_text = answer_query(user_query)
+    return jsonify({"answer": response_text})
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+
 
