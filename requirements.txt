@@ -4,4 +4,3 @@ numpy
 chromadb
 sentence-transformers
 google-generativeai
-gunicorn
