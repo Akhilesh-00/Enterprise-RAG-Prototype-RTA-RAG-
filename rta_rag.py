@@ -6,7 +6,6 @@ from chromadb.utils import embedding_functions
 from sentence_transformers import SentenceTransformer, CrossEncoder
 import google.generativeai as genai
 import json
-from flask import Flask
 from flask import Flask, request, jsonify, render_template
 
 app = Flask(__name__)
@@ -59,7 +58,7 @@ print(f"Chroma collection created with {len(documents)} chunks.")
 # Reranker
 reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
 # Gemini setup
-genai.configure(api_key="AIzaSyAfaUbwr-vzlUbt66znKxSnbOqgESd7moE")  # replace with your Gemini API key
+genai.configure(api_key="AIzaSyC_wXxnWr62XggPJAC5tIYvkR1XcMJMw6E")  # replace with your Gemini API key
 synthesis_model = genai.GenerativeModel("gemini-2.5-pro")# ===============================
 # 3. RETRIEVAL
 # ===============================
@@ -271,7 +270,7 @@ def answer_query(query):
             if df1.empty or df2.empty: return f"❌ Could not find data for one or both periods ('{period1['label']}', '{period2['label']}'). Please check your query."
             s1, s2 = _slice_summary(df1, col1), _slice_summary(df2, col2)
             import matplotlib.pyplot as plt; import textwrap
-            label1, label2 = f"{col1.replace('_', ' ').title()} ({period1['label']})", f"{col2.replace('_', ' ').title()} ({period2['label']})"
+            label1, label2 = f"{col1.replace('', ' ').title()} ({period1['label']})", f"{col2.replace('', ' ').title()} ({period2['label']})"
             plot_df = pd.DataFrame({"Period": [label1, label2], "Total Trips": [s1["total"], s2["total"]], "Average Daily Trips": [s1["avg"], s2["avg"]]})
             if not plot_df.empty:
                 plt.style.use('seaborn-v0_8-darkgrid'); fig, ax = plt.subplots(figsize=(10, 6))
@@ -292,7 +291,7 @@ def answer_query(query):
 
     # --- ROUTE 3: Single Period Aggregation ---
     elif query_type == "aggregation" and matched_cols:
-        filtered_df = df_copy.copy(); range_match = re.search(r'(\w+)\s+(\d{1,2}).*?(?:to|through|-|and)\s*(\w+)?\s*(\d{1,2})', ql)
+        filtered_df = df_copy.copy(); range_match = re.search(r'(\w+)\s+(\d{1,2}).?(?:to|through|-|and)\s(\w+)?\s*(\d{1,2})', ql)
         first_last_match = re.search(r'(first|last)\s+(\d+)\s+days(?:\s+of\s+(\w+))?', ql); day_match = re.search(r'(?:on|for|in|of)?\s*(?:(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(\w+)|(\w+)\s+(\d{1,2})(?:st|nd|rd|th)?)', ql)
         week_matches = re.findall(r'(\d+)(?:st|nd|rd|th)? week of (\w+)', ql); date_filter_applied = False
         try:
@@ -303,7 +302,7 @@ def answer_query(query):
                     year = df_copy['date'].dt.year.max(); start_date, end_date = pd.to_datetime(f'{year}-{month1_num}-{day1}'), pd.to_datetime(f'{year}-{month2_num}-{day2}')
                     if start_date > end_date: end_date = pd.to_datetime(f'{year+1}-{month2_num}-{day2}')
                     filtered_df = df_copy[(df_copy['date'] >= start_date) & (df_copy['date'] <= end_date)].copy()
-                    if not filtered_df.empty: date_filter_applied = True; print(f"🗓️ Applied date range filter: {start_date.date()} to {end_date.date()}")
+                    if not filtered_df.empty: date_filter_applied = True; print(f"🗓 Applied date range filter: {start_date.date()} to {end_date.date()}")
             elif first_last_match:
                 direction, num_days_str, month_name = first_last_match.groups(); num_days, target_df = int(num_days_str), df_copy.copy()
                 if month_name:
@@ -312,15 +311,15 @@ def answer_query(query):
                 if not target_df.empty:
                     if direction == 'first': filtered_df = target_df.nsmallest(num_days, 'date').copy()
                     else: filtered_df = target_df.nlargest(num_days, 'date').copy()
-                    if not filtered_df.empty: date_filter_applied = True; print(f"🗓️ Applied filter: {direction.title()} {num_days} days" + (f" of {month_name.title()}" if month_name else ""))
+                    if not filtered_df.empty: date_filter_applied = True; print(f"🗓 Applied filter: {direction.title()} {num_days} days" + (f" of {month_name.title()}" if month_name else ""))
             elif day_match:
                 day_g1, month_g1, month_g2, day_g2 = day_match.groups(); day_num, month_num, month_str_print = (None, None, None)
                 if day_g1 and month_g1: day_num, month_num, month_str_print = int(day_g1), _month_number(month_g1), month_g1
                 elif month_g2 and day_g2: day_num, month_num, month_str_print = int(day_g2), _month_number(month_g2), month_g2
                 if month_num and day_num:
                     filtered_df = df_copy[(df_copy['date'].dt.month == month_num) & (df_copy['date'].dt.day == day_num)].copy()
-                    if not filtered_df.empty: date_filter_applied = True; print(f"🗓️ Applied single day filter: {month_str_print.title()} {day_num}")
-        except (ValueError, TypeError, IndexError) as e: print(f"⚠️ Could not parse specific date from query: {e}. Proceeding with general logic."); date_filter_applied = False
+                    if not filtered_df.empty: date_filter_applied = True; print(f"🗓 Applied single day filter: {month_str_print.title()} {day_num}")
+        except (ValueError, TypeError, IndexError) as e: print(f"⚠ Could not parse specific date from query: {e}. Proceeding with general logic."); date_filter_applied = False
         if len(week_matches) == 1 and not date_filter_applied:
             (wk_num, wk_month) = week_matches[0]; month_num = _month_number(wk_month)
             if month_num:
@@ -433,7 +432,6 @@ def query():
     return jsonify({"answer": response_text})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
-
+    port = int(os.environ.get("PORT", 8000))  # 8000 fallback for local testing
+    app.run(host="0.0.0.0", port=port)
 
